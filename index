@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Bass Fretboard with Scale Overlays</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #121826;
+      color: #f3f4f6;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #38bdf8;
+    }
+
+    /* Controls Panel */
+    .controls {
+      background: #1e293b;
+      padding: 16px 20px;
+      border-radius: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+
+    select {
+      background: #0f172a;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    select:focus {
+      border-color: #38bdf8;
+    }
+
+    /* Fretboard Container */
+    .fretboard-wrapper {
+      background: #0f172a;
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid #1e293b;
+      overflow-x: auto;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    .fret-numbers {
+      display: grid;
+      grid-template-columns: 50px repeat(12, 1fr);
+      text-align: center;
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .fretboard {
+      display: flex;
+      flex-direction: column;
+      background: #281a14; /* Dark rosewood neck */
+      border-left: 6px solid #e2e8f0; /* Nut */
+      border-right: 2px solid #475569;
+      position: relative;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* Fret Inlays / Markers */
+    .inlays {
+      position: absolute;
+      top: 0;
+      left: 50px;
+      right: 0;
+      bottom: 0;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      pointer-events: none;
+    }
+
+    .inlay-cell {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .inlay-dot {
+      width: 10px;
+      height: 10px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+    }
+
+    .inlay-dot.double {
+      box-shadow: 0 -12px 0 rgba(255, 255, 255, 0.2), 0 12px 0 rgba(255, 255, 255, 0.2);
+    }
+
+    /* Guitar Strings */
+    .string {
+      display: grid;
+      grid-template-columns: 50px repeat(12, 1fr);
+      height: 44px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* String lines extending across */
+    .string::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      background: #cbd5e1;
+      z-index: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    }
+
+    /* String Thicknesses */
+    .string[data-string="3"]::before { height: 1.8px; } /* G string */
+    .string[data-string="2"]::before { height: 2.6px; } /* D string */
+    .string[data-string="1"]::before { height: 3.4px; } /* A string */
+    .string[data-string="0"]::before { height: 4.2px; } /* E string */
+
+    /* Individual Frets */
+    .fret {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-right: 2px solid #94a3b8; /* Metal frets */
+      cursor: pointer;
+      user-select: none;
+      z-index: 2;
+    }
+
+    .fret.open-string {
+      border-right: 4px solid #475569;
+      background: rgba(15, 23, 42, 0.6);
+    }
+
+    /* Note Badges */
+    .note {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #0f172a;
+      opacity: 0;
+      transform: scale(0.7);
+      transition: all 0.15s ease-out;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+    }
+
+    /* Display state */
+    .fret:hover .note {
+      opacity: 0.6;
+      transform: scale(0.9);
+      background-color: #cbd5e1;
+    }
+
+    .note.highlighted {
+      opacity: 1 !important;
+      transform: scale(1) !important;
+      background-color: #38bdf8;
+      color: #0f172a;
+    }
+
+    .note.root-note {
+      background-color: #f43f5e !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 10px rgba(244, 63, 94, 0.6);
+    }
+
+    .note.active-playing {
+      transform: scale(1.25) !important;
+      box-shadow: 0 0 12px #fde047;
+      background-color: #fde047 !important;
+      color: #0f172a !important;
+    }
+
+    .legend {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-top: 16px;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-badge {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>4-String Bass Fretboard Simulator</h1>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="control-group">
+        <label for="root-select">Root Note</label>
+        <select id="root-select">
+          <option value="C">C</option>
+          <option value="C#">C# / Db</option>
+          <option value="D">D</option>
+          <option value="D#">D# / Eb</option>
+          <option value="E" selected>E</option>
+          <option value="F">F</option>
+          <option value="F#">F# / Gb</option>
+          <option value="G">G</option>
+          <option value="G#">G# / Ab</option>
+          <option value="A">A</option>
+          <option value="A#">A# / Bb</option>
+          <option value="B">B</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label for="scale-select">Scale Overlay</label>
+        <select id="scale-select">
+          <option value="none">None (All Notes)</option>
+          <option value="major">Major Scale</option>
+          <option value="minor" selected>Natural Minor Scale</option>
+          <option value="major-pentatonic">Major Pentatonic</option>
+          <option value="minor-pentatonic">Minor Pentatonic</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Fretboard -->
+    <div class="fretboard-wrapper">
+      <div class="fret-numbers">
+        <div>Open</div>
+        <div>1</div><div>2</div><div>3</div><div>4</div>
+        <div>5</div><div>6</div><div>7</div><div>8</div>
+        <div>9</div><div>10</div><div>11</div><div>12</div>
+      </div>
+
+      <div class="fretboard" id="fretboard">
+        <!-- Inlay Dots background -->
+        <div class="inlays">
+          <div class="inlay-cell"></div><!-- 1 -->
+          <div class="inlay-cell"></div><!-- 2 -->
+          <div class="inlay-cell"><div class="inlay-dot"></div></div><!-- 3 -->
+          <div class="inlay-cell"></div><!-- 4 -->
+          <div class="inlay-cell"><div class="inlay-dot"></div></div><!-- 5 -->
+          <div class="inlay-cell"></div><!-- 6 -->
+          <div class="inlay-cell"><div class="inlay-dot"></div></div><!-- 7 -->
+          <div class="inlay-cell"></div><!-- 8 -->
+          <div class="inlay-cell"><div class="inlay-dot"></div></div><!-- 9 -->
+          <div class="inlay-cell"></div><!-- 10 -->
+          <div class="inlay-cell"></div><!-- 11 -->
+          <div class="inlay-cell"><div class="inlay-dot double"></div></div><!-- 12 -->
+        </div>
+
+        <!-- Strings will be dynamically rendered here -->
+      </div>
+
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-badge" style="background: #f43f5e;"></div> Root Note
+        </div>
+        <div class="legend-item">
+          <div class="legend-badge" style="background: #38bdf8;"></div> Scale Degree
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Musical constants
+    const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    
+    // 4-String Bass Standard Tuning (E1, A1, D2, G2)
+    const STRINGS = [
+      { name: "G", rootPitchIndex: 7, octave: 2 }, // String 3 (highest pitch)
+      { name: "D", rootPitchIndex: 2, octave: 2 }, // String 2
+      { name: "A", rootPitchIndex: 9, octave: 1 }, // String 1
+      { name: "E", rootPitchIndex: 4, octave: 1 }  // String 0 (lowest pitch)
+    ];
+
+    // Scale formulas (semitone intervals from root)
+    const SCALES = {
+      "none": null,
+      "major": [0, 2, 4, 5, 7, 9, 11],
+      "minor": [0, 2, 3, 5, 7, 8, 10],
+      "major-pentatonic": [0, 2, 4, 7, 9],
+      "minor-pentatonic": [0, 3, 5, 7, 10]
+    };
+
+    // Web Audio API Setup
+    let audioCtx = null;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // Frequency calculation from note index & octave
+    function getFrequency(semitonesFromC0) {
+      // C0 is ~16.35 Hz
+      return 16.3516 * Math.pow(2, semitonesFromC0 / 12);
+    }
+
+    function playBassNote(semitonesFromC0) {
+      const ctx = getAudioContext();
+      const freq = getFrequency(semitonesFromC0);
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      // Sound design for a warm bass tone (triangle + lowpass filter)
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(freq * 3, ctx.currentTime);
+
+      // Volume envelope (quick attack, natural decay)
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.8, ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start();
+      osc.stop(ctx.currentTime + 1.2);
+    }
+
+    // UI State & Elements
+    const rootSelect = document.getElementById('root-select');
+    const scaleSelect = document.getElementById('scale-select');
+    const fretboardEl = document.getElementById('fretboard');
+
+    function renderFretboard() {
+      // Clear existing string rows
+      const existingStrings = fretboardEl.querySelectorAll('.string');
+      existingStrings.forEach(s => s.remove());
+
+      const rootNote = rootSelect.value;
+      const rootIndex = NOTES.indexOf(rootNote);
+      const activeScale = SCALES[scaleSelect.value];
+
+      // Calculate highlighted note indices
+      let scaleIndices = [];
+      if (activeScale) {
+        scaleIndices = activeScale.map(interval => (rootIndex + interval) % 12);
+      }
+
+      STRINGS.forEach((stringData, stringIdx) => {
+        const stringRow = document.createElement('div');
+        stringRow.className = 'string';
+        stringRow.setAttribute('data-string', stringIdx);
+
+        for (let fret = 0; fret <= 12; fret++) {
+          const fretEl = document.createElement('div');
+          fretEl.className = `fret ${fret === 0 ? 'open-string' : ''}`;
+
+          // Calculate note details
+          const totalSemitonesFromC0 = (stringData.octave * 12) + stringData.rootPitchIndex + fret;
+          const noteIndex = totalSemitonesFromC0 % 12;
+          const noteName = NOTES[noteIndex];
+
+          const noteBadge = document.createElement('div');
+          noteBadge.className = 'note';
+          noteBadge.textContent = noteName;
+
+          // Apply scale highlight styles
+          if (activeScale === null) {
+            noteBadge.classList.add('highlighted');
+          } else if (scaleIndices.includes(noteIndex)) {
+            noteBadge.classList.add('highlighted');
+            if (noteIndex === rootIndex) {
+              noteBadge.classList.add('root-note');
+            }
+          }
+
+          fretEl.appendChild(noteBadge);
+
+          // Click handler to trigger sound & visual pulse
+          fretEl.addEventListener('pointerdown', () => {
+            playBassNote(totalSemitonesFromC0);
+            
+            noteBadge.classList.add('active-playing');
+            setTimeout(() => {
+              noteBadge.classList.remove('active-playing');
+            }, 300);
+          });
+
+          stringRow.appendChild(fretEl);
+        }
+
+        fretboardEl.appendChild(stringRow);
+      });
+    }
+
+    // Event Listeners
+    rootSelect.addEventListener('change', renderFretboard);
+    scaleSelect.addEventListener('change', renderFretboard);
+
+    // Initial Render
+    renderFretboard();
+  </script>
+</body>
+</html>
