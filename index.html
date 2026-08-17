@@ -44,7 +44,7 @@
       flex-wrap: wrap;
       gap: 20px;
       align-items: center;
-      justify-content: center;
+      justify-content: space-between;
       margin-bottom: 24px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
@@ -77,6 +77,33 @@
 
     select:focus {
       border-color: #38bdf8;
+    }
+
+    /* Active Note Display Box */
+    .active-note-box {
+      background: #0f172a;
+      border: 1px solid #38bdf8;
+      padding: 6px 18px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 120px;
+    }
+
+    .active-note-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+
+    .active-note-value {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #fde047;
+      text-shadow: 0 0 10px rgba(253, 224, 71, 0.5);
     }
 
     /* Fretboard Container */
@@ -148,7 +175,6 @@
       z-index: 1;
     }
 
-    /* String lines extending across */
     .string::before {
       content: '';
       position: absolute;
@@ -173,7 +199,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      border-right: 2px solid #94a3b8; /* Metal frets */
+      border-right: 2px solid #94a3b8;
       cursor: pointer;
       user-select: none;
       z-index: 2;
@@ -288,6 +314,12 @@
           <option value="minor-pentatonic">Minor Pentatonic</option>
         </select>
       </div>
+
+      <!-- Active Note Readout -->
+      <div class="active-note-box">
+        <span class="active-note-label">Active Note</span>
+        <span id="active-note-display" class="active-note-value">--</span>
+      </div>
     </div>
 
     <!-- Fretboard -->
@@ -397,6 +429,7 @@
     const rootSelect = document.getElementById('root-select');
     const scaleSelect = document.getElementById('scale-select');
     const fretboardEl = document.getElementById('fretboard');
+    const activeNoteDisplay = document.getElementById('active-note-display');
 
     function renderFretboard() {
       const existingStrings = fretboardEl.querySelectorAll('.string');
@@ -423,6 +456,8 @@
           const totalSemitonesFromC0 = (stringData.octave * 12) + stringData.rootPitchIndex + fret;
           const noteIndex = totalSemitonesFromC0 % 12;
           const noteName = NOTES[noteIndex];
+          const octaveNum = Math.floor(totalSemitonesFromC0 / 12);
+          const fullNoteName = `${noteName}${octaveNum}`;
 
           const noteBadge = document.createElement('div');
           noteBadge.className = 'note';
@@ -439,11 +474,14 @@
 
           fretEl.appendChild(noteBadge);
 
-          // Trigger pitch & pulse animation on click/tap
+          // Pointer handler to trigger audio & active note display
           fretEl.addEventListener('pointerdown', (e) => {
             e.preventDefault();
             playBassNote(totalSemitonesFromC0);
             
+            // Update Active Note display text
+            activeNoteDisplay.textContent = fullNoteName;
+
             // Pulse animation
             noteBadge.classList.add('active-playing');
             setTimeout(() => {
