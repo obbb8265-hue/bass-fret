@@ -400,31 +400,20 @@
       return 16.3516 * Math.pow(2, semitonesFromC0 / 12);
     }
 
-    function playBassNote(semitonesFromC0) {
-      const ctx = getAudioContext();
-      const freq = getFrequency(semitonesFromC0);
+// Base URL pointing to real recorded bass samples (e.g. E1.mp3, A1.mp3, C2.mp3)
+const AUDIO_BASE_URL = "https://raw.githubusercontent.com/fretboard-samples/bass-standard/";
 
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+function playBassNote(semitonesFromC0) {
+  // 1. Calculate note name and octave (e.g., "E1", "A1", "G2")
+  const noteName = NOTES[semitonesFromC0 % 12];
+  const octave = Math.floor(semitonesFromC0 / 12);
+  const sampleName = `${noteName}${octave}`.replace("#", "s"); // e.g. "Cs2" for C#2
 
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(freq * 3, ctx.currentTime);
-
-      gain.gain.setValueAtTime(0.001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.8, ctx.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 1.2);
-    }
+  // 2. Play the real recorded sample file
+  const audio = new Audio(`${AUDIO_BASE_URL}${sampleName}.mp3`);
+  audio.volume = 0.8;
+  audio.play().catch(err => console.log("Audio playback blocked:", err));
+}
 
     const rootSelect = document.getElementById('root-select');
     const scaleSelect = document.getElementById('scale-select');
