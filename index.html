@@ -129,8 +129,8 @@
     .fretboard {
       display: flex;
       flex-direction: column;
-      background: #281a14; /* Dark rosewood neck */
-      border-left: 6px solid #e2e8f0; /* Nut */
+      background: #281a14;
+      border-left: 6px solid #e2e8f0;
       border-right: 2px solid #475569;
       position: relative;
       box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
@@ -227,7 +227,6 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.4);
     }
 
-    /* Display state */
     .fret:hover .note {
       opacity: 0.6;
       transform: scale(0.9);
@@ -247,7 +246,6 @@
       box-shadow: 0 0 10px rgba(244, 63, 94, 0.6);
     }
 
-    /* Active Playing Animation */
     .note.active-playing {
       opacity: 1 !important;
       transform: scale(1.3) !important;
@@ -332,7 +330,6 @@
       </div>
 
       <div class="fretboard" id="fretboard">
-        <!-- Inlay Dots background -->
         <div class="inlays">
           <div class="inlay-cell"></div><!-- 1 -->
           <div class="inlay-cell"></div><!-- 2 -->
@@ -347,8 +344,6 @@
           <div class="inlay-cell"></div><!-- 11 -->
           <div class="inlay-cell"><div class="inlay-dot double"></div></div><!-- 12 -->
         </div>
-
-        <!-- Strings rendered dynamically -->
       </div>
 
       <div class="legend">
@@ -384,46 +379,23 @@
       "minor-pentatonic": [0, 3, 5, 7, 10]
     };
 
-    let audioCtx = null;
+    // Public repository CDN hosting real electric bass audio samples
+    const AUDIO_BASE_URL = "https://tonejs.github.io/audio/berklee/electric_bass_";
 
-    function getAudioContext() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBassSample(noteName, octaveNum) {
+      // Format file string to match audio bank (e.g. "E1", "As1" for A#, "D2", "G3")
+      const safeNoteName = noteName.replace("#", "s");
+      const sampleUrl = `${AUDIO_BASE_URL}${safeNoteName}${octaveNum}.mp3`;
+
+      const audio = new Audio(sampleUrl);
+      audio.volume = 0.85;
+      
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn("Playback error or audio file failed to load:", err);
+        });
       }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-      return audioCtx;
-    }
-
-    function getFrequency(semitonesFromC0) {
-      return 16.3516 * Math.pow(2, semitonesFromC0 / 12);
-    }
-
-    function playBassNote(semitonesFromC0) {
-      const ctx = getAudioContext();
-      const freq = getFrequency(semitonesFromC0);
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(freq * 3, ctx.currentTime);
-
-      gain.gain.setValueAtTime(0.001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.8, ctx.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 1.2);
     }
 
     const rootSelect = document.getElementById('root-select');
@@ -474,15 +446,13 @@
 
           fretEl.appendChild(noteBadge);
 
-          // Pointer handler to trigger audio & active note display
+          // Pointer handler to play real audio sample & update UI
           fretEl.addEventListener('pointerdown', (e) => {
             e.preventDefault();
-            playBassNote(totalSemitonesFromC0);
+            playBassSample(noteName, octaveNum);
             
-            // Update Active Note display text
             activeNoteDisplay.textContent = fullNoteName;
 
-            // Pulse animation
             noteBadge.classList.add('active-playing');
             setTimeout(() => {
               noteBadge.classList.remove('active-playing');
