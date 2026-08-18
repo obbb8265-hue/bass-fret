@@ -400,20 +400,24 @@
       return 16.3516 * Math.pow(2, semitonesFromC0 / 12);
     }
 
-// Base URL pointing to real recorded bass samples (e.g. E1.mp3, A1.mp3, C2.mp3)
-const AUDIO_BASE_URL = "https://raw.githubusercontent.com/fretboard-samples/bass-standard/";
+// Public repository CDN hosting real electric bass audio samples
+    const AUDIO_BASE_URL = "https://tonejs.github.io/audio/berklee/electric_bass_";
 
-function playBassNote(semitonesFromC0) {
-  // 1. Calculate note name and octave (e.g., "E1", "A1", "G2")
-  const noteName = NOTES[semitonesFromC0 % 12];
-  const octave = Math.floor(semitonesFromC0 / 12);
-  const sampleName = `${noteName}${octave}`.replace("#", "s"); // e.g. "Cs2" for C#2
+    function playBassSample(noteName, octaveNum) {
+      // Format file string to match audio bank (e.g. "E1", "As1" for A#, "D2", "G3")
+      const safeNoteName = noteName.replace("#", "s");
+      const sampleUrl = `${AUDIO_BASE_URL}${safeNoteName}${octaveNum}.mp3`;
 
-  // 2. Play the real recorded sample file
-  const audio = new Audio(`${AUDIO_BASE_URL}${sampleName}.mp3`);
-  audio.volume = 0.8;
-  audio.play().catch(err => console.log("Audio playback blocked:", err));
-}
+      const audio = new Audio(sampleUrl);
+      audio.volume = 0.85;
+      
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn("Playback error or audio file failed to load:", err);
+        });
+      }
+    }
 
     const rootSelect = document.getElementById('root-select');
     const scaleSelect = document.getElementById('scale-select');
