@@ -1,6 +1,3 @@
-bass fret backup
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -132,8 +129,8 @@ bass fret backup
     .fretboard {
       display: flex;
       flex-direction: column;
-      background: #281a14; /* Dark rosewood neck */
-      border-left: 6px solid #e2e8f0; /* Nut */
+      background: #281a14;
+      border-left: 6px solid #e2e8f0;
       border-right: 2px solid #475569;
       position: relative;
       box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
@@ -230,7 +227,6 @@ bass fret backup
       box-shadow: 0 2px 5px rgba(0,0,0,0.4);
     }
 
-    /* Display state */
     .fret:hover .note {
       opacity: 0.6;
       transform: scale(0.9);
@@ -250,7 +246,6 @@ bass fret backup
       box-shadow: 0 0 10px rgba(244, 63, 94, 0.6);
     }
 
-    /* Active Playing Animation */
     .note.active-playing {
       opacity: 1 !important;
       transform: scale(1.3) !important;
@@ -335,7 +330,6 @@ bass fret backup
       </div>
 
       <div class="fretboard" id="fretboard">
-        <!-- Inlay Dots background -->
         <div class="inlays">
           <div class="inlay-cell"></div><!-- 1 -->
           <div class="inlay-cell"></div><!-- 2 -->
@@ -350,8 +344,6 @@ bass fret backup
           <div class="inlay-cell"></div><!-- 11 -->
           <div class="inlay-cell"><div class="inlay-dot double"></div></div><!-- 12 -->
         </div>
-
-        <!-- Strings rendered dynamically -->
       </div>
 
       <div class="legend">
@@ -371,12 +363,12 @@ bass fret backup
   <script>
     const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
     
-    // 4-String Bass Standard Tuning (E1, A1, D2, G2)
+    // 4-String Bass Standard Tuning (MIDI note numbers: E1=28, A1=33, D2=38, G2=43)
     const STRINGS = [
-      { name: "G", rootPitchIndex: 7, octave: 2 }, // String 3 (highest pitch)
-      { name: "D", rootPitchIndex: 2, octave: 2 }, // String 2
-      { name: "A", rootPitchIndex: 9, octave: 1 }, // String 1
-      { name: "E", rootPitchIndex: 4, octave: 1 }  // String 0 (lowest pitch)
+      { name: "G", midiRoot: 43 }, // String 3 (highest pitch)
+      { name: "D", midiRoot: 38 }, // String 2
+      { name: "A", midiRoot: 33 }, // String 1
+      { name: "E", midiRoot: 28 }  // String 0 (lowest pitch)
     ];
 
     const SCALES = {
@@ -387,46 +379,25 @@ bass fret backup
       "minor-pentatonic": [0, 3, 5, 7, 10]
     };
 
-    let audioCtx = null;
+    // Free Electric Bass Soundfont repository with static MP3 links
+    const AUDIO_BASE_URL = "https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/electric_bass_finger-mp3/";
 
-    function getAudioContext() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playBassSample(midiNote) {
+      // Maps MIDI numbers directly to real audio files (e.g. E1 = E1.mp3)
+      const noteName = NOTES[midiNote % 12];
+      const octaveNum = Math.floor(midiNote / 12) - 1;
+      const sampleFileName = `${noteName.replace("#", "s")}${octaveNum}.mp3`;
+      
+      const audioUrl = `${AUDIO_BASE_URL}${sampleFileName}`;
+      const audio = new Audio(audioUrl);
+      audio.volume = 0.9;
+      
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn("Audio file playback interrupted:", err);
+        });
       }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
-      return audioCtx;
-    }
-
-    function getFrequency(semitonesFromC0) {
-      return 16.3516 * Math.pow(2, semitonesFromC0 / 12);
-    }
-
-    function playBassNote(semitonesFromC0) {
-      const ctx = getAudioContext();
-      const freq = getFrequency(semitonesFromC0);
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(freq * 3, ctx.currentTime);
-
-      gain.gain.setValueAtTime(0.001, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.8, ctx.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
-
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 1.2);
     }
 
     const rootSelect = document.getElementById('root-select');
@@ -456,10 +427,10 @@ bass fret backup
           const fretEl = document.createElement('div');
           fretEl.className = `fret ${fret === 0 ? 'open-string' : ''}`;
 
-          const totalSemitonesFromC0 = (stringData.octave * 12) + stringData.rootPitchIndex + fret;
-          const noteIndex = totalSemitonesFromC0 % 12;
+          const midiNote = stringData.midiRoot + fret;
+          const noteIndex = midiNote % 12;
           const noteName = NOTES[noteIndex];
-          const octaveNum = Math.floor(totalSemitonesFromC0 / 12);
+          const octaveNum = Math.floor(midiNote / 12) - 1;
           const fullNoteName = `${noteName}${octaveNum}`;
 
           const noteBadge = document.createElement('div');
@@ -477,15 +448,13 @@ bass fret backup
 
           fretEl.appendChild(noteBadge);
 
-          // Pointer handler to trigger audio & active note display
+          // Trigger audio sample & update UI
           fretEl.addEventListener('pointerdown', (e) => {
             e.preventDefault();
-            playBassNote(totalSemitonesFromC0);
+            playBassSample(midiNote);
             
-            // Update Active Note display text
             activeNoteDisplay.textContent = fullNoteName;
 
-            // Pulse animation
             noteBadge.classList.add('active-playing');
             setTimeout(() => {
               noteBadge.classList.remove('active-playing');
