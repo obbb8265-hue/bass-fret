@@ -360,118 +360,120 @@
     </div>
   </div>
 
-  <script>
-    const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+<script>
+  // Display names for the fretboard UI
+  const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  
+  // File naming conversion: soundfont repository uses flats (Db, Eb, Gb, Ab, Bb)
+  const SOUNDFONT_NOTES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+  
+  // 4-String Bass Standard Tuning (MIDI note numbers: E1=28, A1=33, D2=38, G2=43)
+  const STRINGS = [
+    { name: "G", midiRoot: 43 }, // String 3 (highest pitch)
+    { name: "D", midiRoot: 38 }, // String 2
+    { name: "A", midiRoot: 33 }, // String 1
+    { name: "E", midiRoot: 28 }  // String 0 (lowest pitch)
+  ];
+
+  const SCALES = {
+    "none": null,
+    "major": [0, 2, 4, 5, 7, 9, 11],
+    "minor": [0, 2, 3, 5, 7, 8, 10],
+    "major-pentatonic": [0, 2, 4, 7, 9],
+    "minor-pentatonic": [0, 3, 5, 7, 10]
+  };
+
+  // Base URL for the soundfont MP3 files
+  const AUDIO_BASE_URL = "https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/electric_bass_finger-mp3/";
+
+  function playBassSample(midiNote) {
+    const noteName = SOUNDFONT_NOTES[midiNote % 12];
+    const octaveNum = Math.floor(midiNote / 12) - 1;
+    const sampleFileName = `${noteName}${octaveNum}.mp3`;
     
-    // 4-String Bass Standard Tuning (MIDI note numbers: E1=28, A1=33, D2=38, G2=43)
-    const STRINGS = [
-      { name: "G", midiRoot: 43 }, // String 3 (highest pitch)
-      { name: "D", midiRoot: 38 }, // String 2
-      { name: "A", midiRoot: 33 }, // String 1
-      { name: "E", midiRoot: 28 }  // String 0 (lowest pitch)
-    ];
-
-    const SCALES = {
-      "none": null,
-      "major": [0, 2, 4, 5, 7, 9, 11],
-      "minor": [0, 2, 3, 5, 7, 8, 10],
-      "major-pentatonic": [0, 2, 4, 7, 9],
-      "minor-pentatonic": [0, 3, 5, 7, 10]
-    };
-
-    // Free Electric Bass Soundfont repository with static MP3 links
-    const AUDIO_BASE_URL = "https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/electric_bass_finger-mp3/";
-
-    function playBassSample(midiNote) {
-      // Maps MIDI numbers directly to real audio files (e.g. E1 = E1.mp3)
-      const noteName = NOTES[midiNote % 12];
-      const octaveNum = Math.floor(midiNote / 12) - 1;
-      const sampleFileName = `${noteName.replace("#", "s")}${octaveNum}.mp3`;
-      
-      const audioUrl = `${AUDIO_BASE_URL}${sampleFileName}`;
-      const audio = new Audio(audioUrl);
-      audio.volume = 0.9;
-      
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(err => {
-          console.warn("Audio file playback interrupted:", err);
-        });
-      }
-    }
-
-    const rootSelect = document.getElementById('root-select');
-    const scaleSelect = document.getElementById('scale-select');
-    const fretboardEl = document.getElementById('fretboard');
-    const activeNoteDisplay = document.getElementById('active-note-display');
-
-    function renderFretboard() {
-      const existingStrings = fretboardEl.querySelectorAll('.string');
-      existingStrings.forEach(s => s.remove());
-
-      const rootNote = rootSelect.value;
-      const rootIndex = NOTES.indexOf(rootNote);
-      const activeScale = SCALES[scaleSelect.value];
-
-      let scaleIndices = [];
-      if (activeScale) {
-        scaleIndices = activeScale.map(interval => (rootIndex + interval) % 12);
-      }
-
-      STRINGS.forEach((stringData, stringIdx) => {
-        const stringRow = document.createElement('div');
-        stringRow.className = 'string';
-        stringRow.setAttribute('data-string', stringIdx);
-
-        for (let fret = 0; fret <= 12; fret++) {
-          const fretEl = document.createElement('div');
-          fretEl.className = `fret ${fret === 0 ? 'open-string' : ''}`;
-
-          const midiNote = stringData.midiRoot + fret;
-          const noteIndex = midiNote % 12;
-          const noteName = NOTES[noteIndex];
-          const octaveNum = Math.floor(midiNote / 12) - 1;
-          const fullNoteName = `${noteName}${octaveNum}`;
-
-          const noteBadge = document.createElement('div');
-          noteBadge.className = 'note';
-          noteBadge.textContent = noteName;
-
-          if (activeScale === null) {
-            noteBadge.classList.add('highlighted');
-          } else if (scaleIndices.includes(noteIndex)) {
-            noteBadge.classList.add('highlighted');
-            if (noteIndex === rootIndex) {
-              noteBadge.classList.add('root-note');
-            }
-          }
-
-          fretEl.appendChild(noteBadge);
-
-          // Trigger audio sample & update UI
-          fretEl.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            playBassSample(midiNote);
-            
-            activeNoteDisplay.textContent = fullNoteName;
-
-            noteBadge.classList.add('active-playing');
-            setTimeout(() => {
-              noteBadge.classList.remove('active-playing');
-            }, 400);
-          });
-
-          stringRow.appendChild(fretEl);
-        }
-
-        fretboardEl.appendChild(stringRow);
+    const audioUrl = `${AUDIO_BASE_URL}${sampleFileName}`;
+    const audio = new Audio(audioUrl);
+    audio.volume = 0.9;
+    
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(err => {
+        console.warn("Audio file playback interrupted:", err);
       });
     }
+  }
 
-    rootSelect.addEventListener('change', renderFretboard);
-    scaleSelect.addEventListener('change', renderFretboard);
+  const rootSelect = document.getElementById('root-select');
+  const scaleSelect = document.getElementById('scale-select');
+  const fretboardEl = document.getElementById('fretboard');
+  const activeNoteDisplay = document.getElementById('active-note-display');
 
-    renderFretboard();
-  </script>
+  function renderFretboard() {
+    const existingStrings = fretboardEl.querySelectorAll('.string');
+    existingStrings.forEach(s => s.remove());
+
+    const rootNote = rootSelect.value;
+    const rootIndex = NOTES.indexOf(rootNote);
+    const activeScale = SCALES[scaleSelect.value];
+
+    let scaleIndices = [];
+    if (activeScale) {
+      scaleIndices = activeScale.map(interval => (rootIndex + interval) % 12);
+    }
+
+    STRINGS.forEach((stringData, stringIdx) => {
+      const stringRow = document.createElement('div');
+      stringRow.className = 'string';
+      stringRow.setAttribute('data-string', stringIdx);
+
+      for (let fret = 0; fret <= 12; fret++) {
+        const fretEl = document.createElement('div');
+        fretEl.className = `fret ${fret === 0 ? 'open-string' : ''}`;
+
+        const midiNote = stringData.midiRoot + fret;
+        const noteIndex = midiNote % 12;
+        const noteName = NOTES[noteIndex];
+        const octaveNum = Math.floor(midiNote / 12) - 1;
+        const fullNoteName = `${noteName}${octaveNum}`;
+
+        const noteBadge = document.createElement('div');
+        noteBadge.className = 'note';
+        noteBadge.textContent = noteName;
+
+        if (activeScale === null) {
+          noteBadge.classList.add('highlighted');
+        } else if (scaleIndices.includes(noteIndex)) {
+          noteBadge.classList.add('highlighted');
+          if (noteIndex === rootIndex) {
+            noteBadge.classList.add('root-note');
+          }
+        }
+
+        fretEl.appendChild(noteBadge);
+
+        fretEl.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          playBassSample(midiNote);
+          
+          activeNoteDisplay.textContent = fullNoteName;
+
+          noteBadge.classList.add('active-playing');
+          setTimeout(() => {
+            noteBadge.classList.remove('active-playing');
+          }, 400);
+        });
+
+        stringRow.appendChild(fretEl);
+      }
+
+      fretboardEl.appendChild(stringRow);
+    });
+  }
+
+  rootSelect.addEventListener('change', renderFretboard);
+  scaleSelect.addEventListener('change', renderFretboard);
+
+  renderFretboard();
+</script>
 </body>
 </html>
